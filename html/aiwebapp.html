@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Space Shooter</title>
+  <style>
+    body {
+      margin: 0;
+      background-color: #000;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+    canvas {
+      display: block;
+      margin: 0 auto;
+      background: black;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 18px;
+      border: none;
+      background-color: #555;
+      color: white;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    button:hover {
+      background-color: #777;
+    }
+    #instructions {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 10;
+    }
+    #levelUp {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 40px;
+      color: gold;
+      text-shadow: 2px 2px 5px black;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+    <a href="../index.html" style="color: white; text-decoration: none; margin-right: 20px;">Home</a>
+    <a href="scratch.html" style="color: white; text-decoration: none;">Trip to Norway!</a>
+  <div id="instructions">
+    <h1>Welcome to Space Shooter!</h1>
+    <p>Use the arrow keys to move your spaceship and the spacebar to shoot.</p>
+    <p>Shoot the red blocks to score points and avoid collisions!</p>
+    <p>Level up every 50 points, but beware: the game gets harder!</p>
+    <button id="startButton">Start Game</button>
+  </div>
+
+  <canvas id="gameCanvas" width="800" height="600"></canvas>
+  <button id="restartButton" style="display: none;">Restart Game</button>
+  <div id="levelUp">Level Up!</div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const restartButton = document.getElementById('restartButton');
+    const instructions = document.getElementById('instructions');
+    const startButton = document.getElementById('startButton');
+    const levelUpText = document.getElementById('levelUp');
+
+    let player, bullets, enemies, isGameOver, score, level, enemySpeed, enemyFrequency, shootSound, explosionSound;
+
+    function initGame() {
+      player = { x: 375, y: 550, width: 50, height: 20 };
+      bullets = [];
+      enemies = [];
+      isGameOver = false;
+      score = 0;
+      level = 1;
+      enemySpeed = 2;
+      enemyFrequency = 0.05;
+
+      restartButton.style.display = 'none';
+      levelUpText.style.display = 'none';
+
+      shootSound = new Audio('https://freesound.org/data/previews/66/66717_931655-lq.mp3');
+      explosionSound = new Audio('https://freesound.org/data/previews/455/455089_8977430-lq.mp3');
+
+      gameLoop();
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'ArrowLeft') player.x -= 15;
+      if (e.code === 'ArrowRight') player.x += 15;
+      if (e.code === 'Space') shootBullet();
+    });
+
+    function shootBullet() {
+      bullets.push({ x: player.x + player.width / 2, y: player.y, width: 5, height: 10 });
+      shootSound.currentTime = 0;
+      shootSound.play();
+    }
+
+    function spawnEnemies() {
+      if (Math.random() < enemyFrequency) {
+        enemies.push({ x: Math.random() * 750, y: 0, width: 40, height: 40 });
+      }
+    }
+
+    function updateGame() {
+      if (isGameOver) return;
+
+      bullets.forEach((bullet, index) => {
+        bullet.y -= 5;
+        if (bullet.y < 0) bullets.splice(index, 1);
+      });
+
+      enemies.forEach((enemy, index) => {
+        enemy.y += enemySpeed;
+        if (enemy.y > canvas.height) enemies.splice(index, 1);
+      });
+
+      bullets.forEach((bullet, bIndex) => {
+        enemies.forEach((enemy, eIndex) => {
+          if (
+            bullet.x < enemy.x + enemy.width &&
+            bullet.x + bullet.width > enemy.x &&
+            bullet.y < enemy.y + enemy.height &&
+            bullet.y + bullet.height > enemy.y
+          ) {
+            bullets.splice(bIndex, 1);
+            enemies.splice(eIndex, 1);
+            explosionSound.currentTime = 0;
+            explosionSound.play();
+            score += 10;
+
+            if (score % 50 === 0) {
+              level++;
+              enemySpeed += 0.5;
+              enemyFrequency += 0.01;
+
+              levelUpText.style.display = 'block';
+              setTimeout(() => {
+                levelUpText.style.display = 'none';
+              }, 1000);
+            }
+          }
+        });
+      });
+
+      enemies.forEach((enemy) => {
+        if (
+          enemy.x < player.x + player.width &&
+          enemy.x + enemy.width > player.x &&
+          enemy.y < player.y + player.height &&
+          enemy.y + enemy.height > player.y
+        ) {
+          isGameOver = true;
+        }
+      });
+    }
+
+    function drawGame() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = 'white';
+      ctx.fillRect(player.x, player.y, player.width, player.height);
+
+      bullets.forEach((bullet) => {
+        ctx.fillStyle = 'yellow';
+        ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
+      });
+
+      enemies.forEach((enemy) => {
+        ctx.fillStyle = 'red';
+        ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+      });
+
+      ctx.fillStyle = 'white';
+      ctx.font = '20px Arial';
+      ctx.fillText(`Score: ${score}`, 10, 20);
+      ctx.fillText(`Level: ${level}`, 700, 20);
+
+      if (isGameOver) {
+        ctx.fillStyle = 'red';
+        ctx.font = '40px Arial';
+        ctx.fillText('Game Over', canvas.width / 2 - 100, canvas.height / 2);
+        restartButton.style.display = 'block';
+      }
+    }
+
+    function gameLoop() {
+      updateGame();
+      drawGame();
+      spawnEnemies();
+      if (!isGameOver) requestAnimationFrame(gameLoop);
+    }
+
+    restartButton.addEventListener('click', () => {
+      initGame();
+    });
+
+    startButton.addEventListener('click', () => {
+      instructions.style.display = 'none';
+      initGame();
+    });
+  </script>
+</body>
+</html>
+
+
